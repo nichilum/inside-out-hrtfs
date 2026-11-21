@@ -1,13 +1,17 @@
+use std::f32::consts::PI;
+
 use bevy::{
     camera::{CameraOutputMode, Viewport, visibility::RenderLayers},
+    ecs::system::SystemId,
     input::mouse::{MouseMotion, MouseWheel},
     prelude::*,
+    state::commands,
     window::PrimaryWindow,
 };
 use bevy_egui::{
     EguiContext, EguiContexts, EguiGlobalSettings, EguiPlugin, EguiPrimaryContextPass,
     PrimaryEguiContext,
-    egui::{self, Color32, Frame, Margin},
+    egui::{self, Color32, Frame, Margin, Shape::Callback},
 };
 use egui::{LayerId, Ui, UiBuilder};
 use wgpu_types::BlendState;
@@ -24,6 +28,7 @@ fn main() {
         .add_plugins(DefaultPlugins)
         .add_plugins(EguiPlugin::default())
         .add_systems(Startup, setup_system)
+        .add_systems(Update, update_speakers.run_if(on_message::<UpdateSpeakers>))
         .add_systems(EguiPrimaryContextPass, ui_example_system)
         .add_systems(Update, (ShowcaseCamera::zoom, ShowcaseCamera::rotate))
         .init_resource::<UiHandler>()
@@ -35,6 +40,7 @@ fn ui_example_system(
     mut camera: Single<&mut Camera, Without<EguiContext>>,
     window: Single<&mut Window, With<PrimaryWindow>>,
     mut ui_handler: ResMut<UiHandler>,
+    mut update_speakers_writer: MessageWriter<UpdateSpeakers>,
 ) -> Result {
     let ctx = contexts.ctx_mut()?;
     ctx.set_theme(egui::Theme::Light);
@@ -73,10 +79,13 @@ fn ui_example_system(
         .height();
 
     let mut left = egui::Panel::left("left_panel")
-        .default_size(400.0)
+        .min_size(400.)
         .resizable(true)
         .show(&mut viewport_ui, |ui| {
-            ui.allocate_rect(ui.available_rect_before_wrap(), egui::Sense::hover());
+            // ui.allocate_rect(ui.available_rect_before_wrap(), egui::Sense::hover());
+            if ui.button("Spawn Speakers").clicked() {
+                update_speakers_writer.write(UpdateSpeakers(SpeakerOrder::First));
+            }
         })
         .response
         .rect
@@ -102,15 +111,52 @@ fn ui_example_system(
     Ok(())
 }
 
+#[derive(Message, Debug)]
+struct UpdateSpeakers(SpeakerOrder);
+
+#[derive(Debug)]
+enum SpeakerOrder {
+    First,
+    Second,
+}
+fn update_speakers(
+    mut commands: Commands,
+    asset_server: Res<AssetServer>,
+    mut materials: ResMut<Assets<StandardMaterial>>,
+    mut update_speakers_reader: MessageReader<UpdateSpeakers>,
+) {
+    println!("{:?}", update_speakers_reader.read().last());
+
+    // query all speaker entities
+    // delete all speaker entities
+
+    let speaker_handle = asset_server.load(
+        GltfAssetLabel::Primitive {
+            mesh: 0,
+            primitive: 0,
+        }
+        .from_asset("3d/speaker.gltf"),
+    );
+
+    commands.spawn((
+        Mesh3d(speaker_handle),
+        MeshMaterial3d(materials.add(Color::srgb_u8(255, 255, 255))),
+        Transform::from_xyz(0., 0.2, 1.).with_rotation(Quat::from_rotation_y(PI)),
+    ));
+}
 fn setup_system(
     mut commands: Commands,
     mut egui_global_settings: ResMut<EguiGlobalSettings>,
     asset_server: Res<AssetServer>,
     mut materials: ResMut<Assets<StandardMaterial>>,
 ) {
+    // Setup UpdateSpeakers Message
+    commands.insert_resource(Messages::<UpdateSpeakers>::default());
+
     // Disable the automatic creation of a primary context to set it up manually for the camera we need.
     egui_global_settings.auto_create_primary_context = false;
 
+    // Head import
     let head_handle = asset_server.load(
         GltfAssetLabel::Primitive {
             mesh: 0,
@@ -125,6 +171,7 @@ fn setup_system(
         Transform::from_xyz(0., 0., 0.),
     ));
 
+    // Point Lights
     commands.spawn((
         PointLight {
             shadow_maps_enabled: true,
