@@ -1,17 +1,15 @@
-use std::f32::consts::PI;
+use std::f32::consts::FRAC_1_SQRT_2;
 
 use bevy::{
     camera::{CameraOutputMode, Viewport, visibility::RenderLayers},
-    ecs::system::SystemId,
     input::mouse::{MouseMotion, MouseWheel},
     prelude::*,
-    state::commands,
     window::PrimaryWindow,
 };
 use bevy_egui::{
     EguiContext, EguiContexts, EguiGlobalSettings, EguiPlugin, EguiPrimaryContextPass,
     PrimaryEguiContext,
-    egui::{self, Color32, Frame, Margin, Shape::Callback},
+    egui::{self, Color32, Frame, Margin},
 };
 use egui::{LayerId, Ui, UiBuilder};
 use wgpu_types::BlendState;
@@ -24,7 +22,6 @@ pub struct UiHandler {
 
 fn main() {
     App::new()
-        .insert_resource(ClearColor(Color::srgb(1., 1., 1.)))
         .add_plugins(DefaultPlugins)
         .add_plugins(EguiPlugin::default())
         .add_systems(Startup, setup_system)
@@ -43,7 +40,6 @@ fn ui_example_system(
     mut update_speakers_writer: MessageWriter<UpdateSpeakers>,
 ) -> Result {
     let ctx = contexts.ctx_mut()?;
-    ctx.set_theme(egui::Theme::Light);
 
     let mut viewport_ui = Ui::new(
         ctx.clone(),
@@ -62,7 +58,7 @@ fn ui_example_system(
                     top: 2,
                     bottom: 2,
                 })
-                .fill(Color32::from_rgb(240, 240, 240)),
+                .fill(Color32::from_rgb(27, 27, 27)),
         )
         .show(&mut viewport_ui, |ui| {
             ui.horizontal(|ui| {
@@ -79,12 +75,14 @@ fn ui_example_system(
         .height();
 
     let mut left = egui::Panel::left("left_panel")
-        .min_size(400.)
         .resizable(true)
         .show(&mut viewport_ui, |ui| {
             // ui.allocate_rect(ui.available_rect_before_wrap(), egui::Sense::hover());
             if ui.button("Spawn Speakers").clicked() {
                 update_speakers_writer.write(UpdateSpeakers(SpeakerOrder::First));
+            }
+            if ui.button("Spawn Speakers").clicked() {
+                update_speakers_writer.write(UpdateSpeakers(SpeakerOrder::Second));
             }
         })
         .response
@@ -111,24 +109,72 @@ fn ui_example_system(
     Ok(())
 }
 
+// TODO: move to speaker plugin
 #[derive(Message, Debug)]
 struct UpdateSpeakers(SpeakerOrder);
+
+#[derive(Component)]
+struct Speaker;
 
 #[derive(Debug)]
 enum SpeakerOrder {
     First,
     Second,
 }
+
+const FIRST_ORDER_POS: [Vec3; 9] = [
+    Vec3::new(0., 1., 0.), // TOP
+    Vec3::new(1., 0., 0.),
+    Vec3::new(-1., 0., 0.),
+    Vec3::new(0., 0., 1.),  // FRONT
+    Vec3::new(0., 0., -1.), // BEHIND
+    Vec3::new(-0.5, FRAC_1_SQRT_2, -0.5),
+    Vec3::new(-0.5, FRAC_1_SQRT_2, 0.5),
+    Vec3::new(0.5, FRAC_1_SQRT_2, -0.5),
+    Vec3::new(0.5, FRAC_1_SQRT_2, 0.5),
+];
+const SECOND_ORDER_POS: [Vec3; 25] = [
+    // FIRST ORDER
+    Vec3::new(0., 1., 0.), // TOP
+    Vec3::new(1., 0., 0.),
+    Vec3::new(-1., 0., 0.),
+    Vec3::new(0., 0., 1.),  // FRONT
+    Vec3::new(0., 0., -1.), // BEHIND
+    Vec3::new(-0.5, FRAC_1_SQRT_2, -0.5),
+    Vec3::new(-0.5, FRAC_1_SQRT_2, 0.5),
+    Vec3::new(0.5, FRAC_1_SQRT_2, -0.5),
+    Vec3::new(0.5, FRAC_1_SQRT_2, 0.5),
+    // ADDITIONAL SECOND ORDER
+    Vec3::new(0., FRAC_1_SQRT_2, FRAC_1_SQRT_2),
+    Vec3::new(0., FRAC_1_SQRT_2, -FRAC_1_SQRT_2),
+    Vec3::new(FRAC_1_SQRT_2, FRAC_1_SQRT_2, 0.),
+    Vec3::new(-FRAC_1_SQRT_2, FRAC_1_SQRT_2, 0.),
+    Vec3::new(FRAC_1_SQRT_2, 0., FRAC_1_SQRT_2),
+    Vec3::new(-FRAC_1_SQRT_2, 0., FRAC_1_SQRT_2),
+    Vec3::new(-FRAC_1_SQRT_2, 0., -FRAC_1_SQRT_2),
+    Vec3::new(FRAC_1_SQRT_2, 0., -FRAC_1_SQRT_2),
+    Vec3::new(0., -FRAC_1_SQRT_2, FRAC_1_SQRT_2),
+    Vec3::new(0., -FRAC_1_SQRT_2, -FRAC_1_SQRT_2),
+    Vec3::new(FRAC_1_SQRT_2, -FRAC_1_SQRT_2, 0.),
+    Vec3::new(-FRAC_1_SQRT_2, -FRAC_1_SQRT_2, 0.),
+    Vec3::new(-0.5, -FRAC_1_SQRT_2, -0.5),
+    Vec3::new(-0.5, -FRAC_1_SQRT_2, 0.5),
+    Vec3::new(0.5, -FRAC_1_SQRT_2, -0.5),
+    Vec3::new(0.5, -FRAC_1_SQRT_2, 0.5),
+];
+
+const FACE_HEIGHT: Vec3 = Vec3::new(0., 0.2, 0.);
+
 fn update_speakers(
     mut commands: Commands,
     asset_server: Res<AssetServer>,
     mut materials: ResMut<Assets<StandardMaterial>>,
     mut update_speakers_reader: MessageReader<UpdateSpeakers>,
+    speaker_query: Query<Entity, With<Speaker>>,
 ) {
-    println!("{:?}", update_speakers_reader.read().last());
-
-    // query all speaker entities
-    // delete all speaker entities
+    for id in &speaker_query {
+        commands.entity(id).despawn();
+    }
 
     let speaker_handle = asset_server.load(
         GltfAssetLabel::Primitive {
@@ -138,12 +184,20 @@ fn update_speakers(
         .from_asset("3d/speaker.gltf"),
     );
 
-    commands.spawn((
-        Mesh3d(speaker_handle),
-        MeshMaterial3d(materials.add(Color::srgb_u8(255, 255, 255))),
-        Transform::from_xyz(0., 0.2, 1.).with_rotation(Quat::from_rotation_y(PI)),
-    ));
+    for pos in match update_speakers_reader.read().last().unwrap().0 {
+        SpeakerOrder::First => FIRST_ORDER_POS.to_vec(),
+        SpeakerOrder::Second => SECOND_ORDER_POS.to_vec(),
+    } {
+        let pos = pos + FACE_HEIGHT;
+        commands.spawn((
+            Speaker,
+            Mesh3d(speaker_handle.clone()),
+            MeshMaterial3d(materials.add(Color::srgb_u8(255, 255, 255))),
+            Transform::from_xyz(pos.x, pos.y, pos.z).looking_at(FACE_HEIGHT, Dir3::Y),
+        ));
+    }
 }
+
 fn setup_system(
     mut commands: Commands,
     mut egui_global_settings: ResMut<EguiGlobalSettings>,
@@ -175,45 +229,44 @@ fn setup_system(
     commands.spawn((
         PointLight {
             shadow_maps_enabled: true,
-            intensity: 100_000.,
+            intensity: 10_000.,
             ..default()
         },
-        Transform::from_xyz(0.0, 0.0, 4.0),
+        Transform::from_xyz(0.0, 0.0, -0.5),
     ));
     commands.spawn((
         PointLight {
             shadow_maps_enabled: true,
+            intensity: 10_000.,
             ..default()
         },
-        Transform::from_xyz(0.0, 0.0, -4.0),
+        Transform::from_xyz(0.5, 0.0, 0.0),
     ));
     commands.spawn((
         PointLight {
             shadow_maps_enabled: true,
+            intensity: 10_000.,
             ..default()
         },
-        Transform::from_xyz(4.0, 0.0, 0.0),
+        Transform::from_xyz(-0.5, 0.0, 0.5),
     ));
     commands.spawn((
         PointLight {
             shadow_maps_enabled: true,
+            intensity: 5_000.,
+            radius: 40.,
             ..default()
         },
-        Transform::from_xyz(-4.0, 0.0, 4.0),
+        Transform::from_xyz(0.0, 0.5, 0.5),
     ));
     commands.spawn((
         PointLight {
             shadow_maps_enabled: true,
+            intensity: 10_000.,
+            radius: 40.,
             ..default()
         },
-        Transform::from_xyz(0.0, 4.0, 4.0),
-    ));
-    commands.spawn((
-        PointLight {
-            shadow_maps_enabled: true,
-            ..default()
-        },
-        Transform::from_xyz(0.0, -4.0, 4.0),
+        Transform::from_xyz(0.0, 0.5, -0.5),
     ));
 
     // World camera.
@@ -237,18 +290,20 @@ fn setup_system(
     ));
 }
 
+// TODO: move
 #[derive(Component, Reflect, Clone, PartialEq, Debug)]
 pub struct ShowcaseCamera {
     pub orbit: Vec3,
     pub distance: f32,
     pub mouse_sensitivity: f32,
     pub zoom_scale: f32,
+    pub is_rotating: bool,
 }
 impl ShowcaseCamera {
     pub fn rotate(
         mut mouse_motion_events: MessageReader<MouseMotion>,
         mouse_input: Res<ButtonInput<MouseButton>>,
-        mut query: Query<(&ShowcaseCamera, &mut Transform)>,
+        mut query: Query<(&mut ShowcaseCamera, &mut Transform)>,
         mut ui_handler: ResMut<UiHandler>,
     ) {
         let mut delta = bevy::math::Vec2::ZERO;
@@ -258,14 +313,24 @@ impl ShowcaseCamera {
         }
         if mouse_input.just_pressed(MouseButton::Left) {
             ui_handler.enable_viewport_control = !ui_handler.cursor_over_ui;
-            delta = bevy::math::Vec2::ZERO;
+            if ui_handler.enable_viewport_control {
+                delta = bevy::math::Vec2::ZERO;
+                for (mut camera, _) in &mut query {
+                    camera.is_rotating = false;
+                }
+            }
         }
         for (camera, mut transform) in &mut query {
             // ROTATION
             let (mut rx, mut ry, rz) = transform.rotation.to_euler(EulerRot::YXZ);
-            rx += (-delta.x * camera.mouse_sensitivity).to_radians();
-            ry += (-delta.y * camera.mouse_sensitivity).to_radians();
-            ry = ry.clamp(-90_f32.to_radians(), 90_f32.to_radians());
+            if camera.is_rotating {
+                rx -= 0.005;
+                ry = -0.25;
+            } else {
+                rx += (-delta.x * camera.mouse_sensitivity).to_radians();
+                ry += (-delta.y * camera.mouse_sensitivity).to_radians();
+                ry = ry.clamp(-90_f32.to_radians(), 90_f32.to_radians());
+            }
             transform.rotation = Quat::from_euler(EulerRot::YXZ, rx, ry, rz);
 
             // ORBIT TRANSFORM
@@ -297,10 +362,11 @@ impl ShowcaseCamera {
 impl Default for ShowcaseCamera {
     fn default() -> Self {
         Self {
-            orbit: Vec3::new(0., 0.2, 0.),
-            distance: 2.0,
+            orbit: FACE_HEIGHT,
+            distance: 4.0,
             mouse_sensitivity: 0.1,
             zoom_scale: 25.0,
+            is_rotating: true,
         }
     }
 }
