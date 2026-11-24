@@ -7,6 +7,7 @@ edition = "2024"
 anyhow = "1.0.104"
 bevy = "0.20.0"
 bevy_egui = "0.43.1"
+egui-scale = "0.6.1"
 tch = "=0.22.0"
 wgpu-types = "30.0.2"
 

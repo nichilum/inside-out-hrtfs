@@ -12,6 +12,7 @@ use bevy_egui::{
     egui::{self, Color32, Frame, Margin},
 };
 use egui::{LayerId, Ui, UiBuilder};
+use egui_scale::EguiScale;
 use wgpu_types::BlendState;
 
 #[derive(Resource, Default)]
@@ -77,6 +78,7 @@ fn ui_example_system(
     let mut left = egui::Panel::left("left_panel")
         .resizable(true)
         .show(&mut viewport_ui, |ui| {
+            ui.style_mut().scale(1.5);
             // ui.allocate_rect(ui.available_rect_before_wrap(), egui::Sense::hover());
             if ui.button("Spawn Speakers").clicked() {
                 update_speakers_writer.write(UpdateSpeakers(SpeakerOrder::First));

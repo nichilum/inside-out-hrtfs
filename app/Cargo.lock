@@ -2741,6 +2741,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "egui-scale"
+version = "0.6.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "16194efd2800275df80448afa0ee11d3e23ce0220f6754e1af53fec8e9b7467a"
+dependencies = [
+ "egui",
+]
+
+[[package]]
 name = "either"
 version = "1.19.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3403,6 +3412,7 @@ dependencies = [
  "anyhow",
  "bevy",
  "bevy_egui",
+ "egui-scale",
  "tch",
  "wgpu-types",
 ]
