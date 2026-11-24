@@ -42,5 +42,3 @@ pub const SECOND_ORDER_POS: [Vec3; 25] = [
     Vec3::new(0.5, -FRAC_1_SQRT_2, -0.5),
     Vec3::new(0.5, -FRAC_1_SQRT_2, 0.5),
 ];
-
-pub const FACE_HEIGHT: Vec3 = Vec3::new(0., 0.2, 0.);
