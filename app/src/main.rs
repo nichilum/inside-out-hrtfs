@@ -1,9 +1,12 @@
 use bevy::prelude::*;
 
-use crate::ui::plugin::UiPlugin;
+use crate::{render::plugin::RenderPlugin, ui::plugin::UiPlugin};
 
+pub mod render;
 pub mod ui;
 
 fn main() {
-    App::new().add_plugins((DefaultPlugins, UiPlugin)).run();
+    App::new()
+        .add_plugins((DefaultPlugins, UiPlugin, RenderPlugin))
+        .run();
 }
