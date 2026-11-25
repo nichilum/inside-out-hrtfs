@@ -29,3 +29,5 @@ cuda_id = torch.cuda.current_device()
 print(f"ID of current CUDA device: {torch.cuda.current_device()}")
 
 print(f"Name of current CUDA device: {torch.cuda.get_device_name(cuda_id)}")
+
+main()
